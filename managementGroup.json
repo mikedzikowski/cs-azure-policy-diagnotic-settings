@@ -1,0 +1,374 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "12273306351197734144"
+    }
+  },
+  "parameters": {
+    "eventHubAuthorizationRuleId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the Event Hub namespace authorization rule with Send rights, e.g. /subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.EventHub/namespaces/<namespace>/authorizationRules/<rule>."
+      }
+    },
+    "eventHubName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the event hub that receives Activity Logs. Name only, not a resource ID."
+      }
+    },
+    "diagnosticSettingName": {
+      "type": "string",
+      "defaultValue": "cs-monitor-activity-to-eventhub",
+      "metadata": {
+        "description": "Name of the diagnostic setting created on each subscription."
+      }
+    },
+    "policyEffect": {
+      "type": "string",
+      "defaultValue": "DeployIfNotExists",
+      "allowedValues": [
+        "DeployIfNotExists",
+        "Disabled"
+      ],
+      "metadata": {
+        "description": "DeployIfNotExists creates missing diagnostic settings. Disabled turns the policy off."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[deployment().location]",
+      "metadata": {
+        "description": "Region for the policy assignment managed identity."
+      }
+    }
+  },
+  "variables": {
+    "ruleIdSegments": "[split(parameters('eventHubAuthorizationRuleId'), '/')]",
+    "_1._2": {
+      "properties": {
+        "displayName": "Activity Logs must be sent to CrowdStrike for IOA assessment",
+        "description": "Activity Log data must be sent to CrowdStrike for Indicator of Attack (IOA) assessment.",
+        "policyType": "Custom",
+        "metadata": {
+          "version": "1.0.0",
+          "category": "Security"
+        },
+        "mode": "All",
+        "parameters": {
+          "diagnosticSettingName": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Diagnostic Setting Name"
+            },
+            "defaultValue": "cs-monitor-activity-to-eventhub"
+          },
+          "eventHubAuthorizationRuleId": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Event Hub Authorization Rule Id",
+              "strongType": "Microsoft.EventHub/Namespaces/AuthorizationRules",
+              "assignPermissions": true
+            }
+          },
+          "eventHubName": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Event Hub Name",
+              "strongType": "Microsoft.EventHub/Namespaces/EventHubs"
+            }
+          },
+          "policyEffect": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Policy Effect"
+            },
+            "allowedValues": [
+              "DeployIfNotExists",
+              "Disabled"
+            ],
+            "defaultValue": "DeployIfNotExists"
+          }
+        },
+        "policyRule": {
+          "if": {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions"
+          },
+          "then": {
+            "effect": "[[parameters('policyEffect')]",
+            "details": {
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "deploymentScope": "Subscription",
+              "existenceScope": "Subscription",
+              "existenceCondition": {
+                "allOf": [
+                  {
+                    "field": "name",
+                    "equals": "[[parameters('diagnosticSettingName')]"
+                  },
+                  {
+                    "field": "Microsoft.Insights/diagnosticSettings/eventHubAuthorizationRuleId",
+                    "equals": "[[parameters('eventHubAuthorizationRuleId')]"
+                  },
+                  {
+                    "field": "Microsoft.Insights/diagnosticSettings/eventHubName",
+                    "equals": "[[parameters('eventHubName')]"
+                  }
+                ]
+              },
+              "deployment": {
+                "location": "westeurope",
+                "properties": {
+                  "mode": "incremental",
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "diagnosticSettingName": {
+                        "type": "String"
+                      },
+                      "eventHubAuthorizationRuleId": {
+                        "type": "String"
+                      },
+                      "eventHubName": {
+                        "type": "string"
+                      }
+                    },
+                    "variables": {},
+                    "resources": [
+                      {
+                        "name": "[[parameters('diagnosticSettingName')]",
+                        "type": "Microsoft.Insights/diagnosticSettings",
+                        "apiVersion": "2021-05-01-preview",
+                        "location": "Global",
+                        "properties": {
+                          "eventHubAuthorizationRuleId": "[[parameters('eventHubAuthorizationRuleId')]",
+                          "eventHubName": "[[parameters('eventHubName')]",
+                          "logs": [
+                            {
+                              "category": "Administrative",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Security",
+                              "enabled": true
+                            },
+                            {
+                              "category": "ServiceHealth",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Alert",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Recommendation",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Policy",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Autoscale",
+                              "enabled": true
+                            },
+                            {
+                              "category": "ResourceHealth",
+                              "enabled": true
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "outputs": {}
+                  },
+                  "parameters": {
+                    "diagnosticSettingName": {
+                      "value": "[[parameters('diagnosticSettingName')]"
+                    },
+                    "eventHubAuthorizationRuleId": {
+                      "value": "[[parameters('eventHubAuthorizationRuleId')]"
+                    },
+                    "eventHubName": {
+                      "value": "[[parameters('eventHubName')]"
+                    }
+                  }
+                }
+              },
+              "roleDefinitionIds": [
+                "/providers/microsoft.authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa",
+                "/providers/microsoft.authorization/roleDefinitions/2a5c394f-5eb7-4d4f-9c8e-e8eae39faebc",
+                "/providers/microsoft.authorization/roleDefinitions/f526a384-b230-433a-b45c-95f59c4a2dec"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "policy": "[variables('_1._2').properties]",
+    "policyAssignmentDisplayName": "CrowdStrike IOA",
+    "policyAssignmentName": "cs-ioa-assignment",
+    "policyDefinitionName": "[guid(variables('policy').displayName)]",
+    "roleDefinitionIds": "[map(variables('policy').policyRule.then.details.roleDefinitionIds, lambda('id', last(split(lambdaVariables('id'), '/'))))]"
+  },
+  "resources": {
+    "policyDefinition": {
+      "type": "Microsoft.Authorization/policyDefinitions",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('policyDefinitionName')]",
+      "properties": "[variables('policy')]"
+    },
+    "policyAssignment": {
+      "type": "Microsoft.Authorization/policyAssignments",
+      "apiVersion": "2024-04-01",
+      "name": "[variables('policyAssignmentName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "displayName": "[variables('policyAssignmentDisplayName')]",
+        "description": "[variables('policy').description]",
+        "policyDefinitionId": "[extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]",
+        "parameters": {
+          "diagnosticSettingName": {
+            "value": "[parameters('diagnosticSettingName')]"
+          },
+          "eventHubAuthorizationRuleId": {
+            "value": "[parameters('eventHubAuthorizationRuleId')]"
+          },
+          "eventHubName": {
+            "value": "[parameters('eventHubName')]"
+          },
+          "policyEffect": {
+            "value": "[parameters('policyEffect')]"
+          }
+        }
+      },
+      "dependsOn": [
+        "policyDefinition"
+      ]
+    },
+    "roleAssignments": {
+      "copy": {
+        "name": "roleAssignments",
+        "count": "[length(variables('roleDefinitionIds'))]"
+      },
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', variables('policyAssignmentName')), variables('roleDefinitionIds')[copyIndex()])]",
+      "properties": {
+        "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('roleDefinitionIds')[copyIndex()])]",
+        "principalId": "[reference('policyAssignment', '2024-04-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "policyAssignment"
+      ]
+    },
+    "eventHubRoleAssignment": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "cs-ioa-eventhub-rbac",
+      "subscriptionId": "[variables('ruleIdSegments')[2]]",
+      "resourceGroup": "[variables('ruleIdSegments')[4]]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "namespaceName": {
+            "value": "[variables('ruleIdSegments')[8]]"
+          },
+          "authorizationRuleName": {
+            "value": "[variables('ruleIdSegments')[10]]"
+          },
+          "principalId": {
+            "value": "[reference('policyAssignment', '2024-04-01', 'full').identity.principalId]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "11034835966748666186"
+            }
+          },
+          "parameters": {
+            "namespaceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Event Hub namespace."
+              }
+            },
+            "authorizationRuleName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the namespace authorization rule."
+              }
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID of the policy assignment managed identity."
+              }
+            }
+          },
+          "variables": {
+            "eventHubsDataOwnerRoleId": "f526a384-b230-433a-b45c-95f59c4a2dec"
+          },
+          "resources": {
+            "namespace::authorizationRule": {
+              "existing": true,
+              "type": "Microsoft.EventHub/namespaces/authorizationRules",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', parameters('namespaceName'), parameters('authorizationRuleName'))]"
+            },
+            "namespace": {
+              "existing": true,
+              "type": "Microsoft.EventHub/namespaces",
+              "apiVersion": "2024-01-01",
+              "name": "[parameters('namespaceName')]"
+            },
+            "roleAssignment": {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.EventHub/namespaces/authorizationRules', parameters('namespaceName'), parameters('authorizationRuleName'))]",
+              "name": "[guid(resourceId('Microsoft.EventHub/namespaces/authorizationRules', parameters('namespaceName'), parameters('authorizationRuleName')), parameters('principalId'), variables('eventHubsDataOwnerRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('eventHubsDataOwnerRoleId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "policyAssignment"
+      ]
+    }
+  },
+  "outputs": {
+    "policyAssignmentId": {
+      "type": "string",
+      "value": "[extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', variables('policyAssignmentName'))]"
+    },
+    "principalId": {
+      "type": "string",
+      "value": "[reference('policyAssignment', '2024-04-01', 'full').identity.principalId]"
+    }
+  }
+}

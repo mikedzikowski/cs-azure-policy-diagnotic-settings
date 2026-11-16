@@ -20,6 +20,26 @@
               ]
             },
             {
+              "name": "locationsApi",
+              "type": "Microsoft.Solutions.ArmApiControl",
+              "request": {
+                "method": "GET",
+                "path": "locations?api-version=2022-12-01"
+              }
+            },
+            {
+              "name": "region",
+              "type": "Microsoft.Common.DropDown",
+              "label": "Region",
+              "toolTip": "Where the deployment record and the policy managed identity are stored. Activity Log data still goes straight to your Event Hub. Choosing the Event Hubs namespace region is a sensible default.",
+              "filter": true,
+              "filterPlaceholder": "Filter regions...",
+              "constraints": {
+                "required": true,
+                "allowedValues": "[map(filter(steps('basics').locationsApi.value, (loc) => equals(loc.metadata.regionType, 'Physical')), (loc) => parse(concat('{\"label\":\"', loc.displayName, '\",\"value\":\"', loc.name, '\"}')))]"
+              }
+            },
+            {
               "name": "eventHub",
               "type": "Microsoft.Common.Section",
               "label": "Event Hub destination",
@@ -31,7 +51,7 @@
                     "method": "POST",
                     "path": "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01",
                     "body": {
-                      "query": "resources | where type =~ 'microsoft.eventhub/namespaces' | join kind=leftouter (resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | project subscriptionId, subscriptionName=name) on subscriptionId | project label=name, description=strcat(subscriptionName, ' / ', resourceGroup, ' / ', tostring(sku.name), ' / ', location), value=pack('id', id, 'name', name, 'location', location) | order by label asc"
+                      "query": "resources | where type =~ 'microsoft.eventhub/namespaces' | join kind=leftouter (resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | project subscriptionId, subscriptionName=name) on subscriptionId | project label=name, description=strcat(subscriptionName, ' / ', resourceGroup, ' / ', tostring(sku.name), ' / ', location), value=id | order by label asc"
                     }
                   }
                 },
@@ -54,7 +74,7 @@
                   "condition": "[not(empty(steps('basics').eventHub.namespace))]",
                   "request": {
                     "method": "GET",
-                    "path": "[concat(steps('basics').eventHub.namespace.id, '/authorizationRules?api-version=2024-01-01')]"
+                    "path": "[concat(steps('basics').eventHub.namespace, '/authorizationRules?api-version=2024-01-01')]"
                   }
                 },
                 {
@@ -74,7 +94,7 @@
                   "condition": "[not(empty(steps('basics').eventHub.namespace))]",
                   "request": {
                     "method": "GET",
-                    "path": "[concat(steps('basics').eventHub.namespace.id, '/eventhubs?api-version=2024-01-01')]"
+                    "path": "[concat(steps('basics').eventHub.namespace, '/eventhubs?api-version=2024-01-01')]"
                   }
                 },
                 {
@@ -86,14 +106,6 @@
                   "constraints": {
                     "required": true,
                     "allowedValues": "[map(steps('basics').eventHub.eventHubsApi.value, (hub) => parse(concat('{\"label\":\"', hub.name, '\",\"value\":\"', hub.name, '\"}')))]"
-                  }
-                },
-                {
-                  "name": "regionInfo",
-                  "type": "Microsoft.Common.TextBlock",
-                  "visible": "[not(empty(steps('basics').eventHub.namespace))]",
-                  "options": {
-                    "text": "[concat('Deployment metadata and the policy managed identity will be stored in ', steps('basics').eventHub.namespace.location, ', the namespace region.')]"
                   }
                 }
               ]
@@ -151,7 +163,7 @@
     "outputs": {
       "kind": "ManagementGroup",
       "managementGroupId": "[steps('basics').managementGroup.managementGroupId]",
-      "location": "[steps('basics').eventHub.namespace.location]",
+      "location": "[steps('basics').region]",
       "parameters": {
         "eventHubAuthorizationRuleId": "[steps('basics').eventHub.authorizationRule]",
         "eventHubName": "[steps('basics').eventHub.eventHub]",

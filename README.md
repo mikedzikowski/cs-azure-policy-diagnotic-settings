@@ -27,15 +27,13 @@ Pick one scope.
 | Field | What to choose |
 |---|---|
 | **Management group** or **Subscription** | Where the policy is created and assigned |
+| **Region** | Where the deployment record and the policy's managed identity are stored. Activity Log data still goes straight to your Event Hub. The namespace's region is a sensible choice. |
 | **Event Hubs namespace** | The namespace that receives the logs. Lists every namespace you can read, in any subscription. The CrowdStrike registration creates one named `cs-horizon-ns-<subscription-id>`. |
 | **Authorization rule** | A namespace shared access policy with **Send** rights. Only rules with Send are listed. The CrowdStrike registration creates a Send-only rule named `cs-eventhub-monitor-auth-rule`. Avoid `RootManageSharedAccessKey`; it's the namespace's admin key. |
 | **Event hub** | The event hub in that namespace. The CrowdStrike registration creates one named `cs-eventhub-monitor-activity-logs`. |
 | **Diagnostic setting name** | Leave the default unless you need a different name |
 | **Policy effect** | `DeployIfNotExists` (default) or `Disabled` |
 | **Create a remediation task** | *Subscription only.* Leave **Yes** to fix the subscription right away |
-
-The deployment record and the policy's managed identity are stored in the Event Hubs
-namespace's region. The form shows which region before you deploy.
 
 Each deployment creates:
 

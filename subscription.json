@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "15885989960773688295"
+      "templateHash": "4819749852465252056"
     }
   },
   "parameters": {
@@ -45,13 +45,6 @@
       "defaultValue": true,
       "metadata": {
         "description": "Start a remediation task that re-evaluates the subscription and creates the diagnostic setting if it is missing."
-      }
-    },
-    "location": {
-      "type": "string",
-      "defaultValue": "[deployment().location]",
-      "metadata": {
-        "description": "Region for the policy assignment managed identity."
       }
     }
   },
@@ -236,7 +229,7 @@
       "type": "Microsoft.Authorization/policyAssignments",
       "apiVersion": "2024-04-01",
       "name": "[variables('policyAssignmentName')]",
-      "location": "[parameters('location')]",
+      "location": "[deployment().location]",
       "identity": {
         "type": "SystemAssigned"
       },

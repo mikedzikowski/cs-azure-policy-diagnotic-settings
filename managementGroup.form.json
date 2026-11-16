@@ -1,0 +1,163 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2021-09-09/uiFormDefinition.schema.json#",
+  "view": {
+    "kind": "Form",
+    "properties": {
+      "title": "CrowdStrike IOA Activity Log policy (management group)",
+      "steps": [
+        {
+          "name": "basics",
+          "label": "Basics",
+          "elements": [
+            {
+              "name": "managementGroup",
+              "type": "Microsoft.Common.ManagementGroupSelector",
+              "constraints": [
+                {
+                  "isValid": "[not(empty(steps('basics').managementGroup.managementGroupId))]",
+                  "message": "Select a management group."
+                }
+              ]
+            },
+            {
+              "name": "eventHub",
+              "type": "Microsoft.Common.Section",
+              "label": "Event Hub destination",
+              "elements": [
+                {
+                  "name": "namespacesApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "POST",
+                    "path": "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01",
+                    "body": {
+                      "query": "resources | where type =~ 'microsoft.eventhub/namespaces' | join kind=leftouter (resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | project subscriptionId, subscriptionName=name) on subscriptionId | project label=name, description=strcat(subscriptionName, ' / ', resourceGroup, ' / ', tostring(sku.name), ' / ', location), value=pack('id', id, 'name', name, 'location', location) | order by label asc"
+                    }
+                  }
+                },
+                {
+                  "name": "namespace",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Event Hubs namespace",
+                  "toolTip": "Namespace that receives the Activity Logs. Lists every namespace you can read, in any subscription. The CrowdStrike registration creates one named cs-horizon-ns-<subscription-id>.",
+                  "filter": true,
+                  "filterPlaceholder": "Filter namespaces...",
+                  "multiLine": true,
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": "[steps('basics').eventHub.namespacesApi.data]"
+                  }
+                },
+                {
+                  "name": "authorizationRulesApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "condition": "[not(empty(steps('basics').eventHub.namespace))]",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').eventHub.namespace.id, '/authorizationRules?api-version=2024-01-01')]"
+                  }
+                },
+                {
+                  "name": "authorizationRule",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Authorization rule",
+                  "toolTip": "Namespace shared access policy the diagnostic setting uses. Only rules with Send rights are listed. The CrowdStrike registration creates a Send-only rule named cs-eventhub-monitor-auth-rule. Avoid RootManageSharedAccessKey; it's the namespace admin key.",
+                  "visible": "[not(empty(steps('basics').eventHub.namespace))]",
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": "[map(filter(steps('basics').eventHub.authorizationRulesApi.value, (rule) => contains(rule.properties.rights, 'Send')), (rule) => parse(concat('{\"label\":\"', rule.name, '\",\"value\":\"', rule.id, '\"}')))]"
+                  }
+                },
+                {
+                  "name": "eventHubsApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "condition": "[not(empty(steps('basics').eventHub.namespace))]",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').eventHub.namespace.id, '/eventhubs?api-version=2024-01-01')]"
+                  }
+                },
+                {
+                  "name": "eventHub",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Event hub",
+                  "toolTip": "Event hub that receives the Activity Logs. The CrowdStrike registration creates one named cs-eventhub-monitor-activity-logs.",
+                  "visible": "[not(empty(steps('basics').eventHub.namespace))]",
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": "[map(steps('basics').eventHub.eventHubsApi.value, (hub) => parse(concat('{\"label\":\"', hub.name, '\",\"value\":\"', hub.name, '\"}')))]"
+                  }
+                },
+                {
+                  "name": "regionInfo",
+                  "type": "Microsoft.Common.TextBlock",
+                  "visible": "[not(empty(steps('basics').eventHub.namespace))]",
+                  "options": {
+                    "text": "[concat('Deployment metadata and the policy managed identity will be stored in ', steps('basics').eventHub.namespace.location, ', the namespace region.')]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "policy",
+          "label": "Policy settings",
+          "elements": [
+            {
+              "name": "diagnosticSettingName",
+              "type": "Microsoft.Common.TextBox",
+              "label": "Diagnostic setting name",
+              "defaultValue": "cs-monitor-activity-to-eventhub",
+              "toolTip": "Name of the diagnostic setting created on each subscription.",
+              "constraints": {
+                "required": true,
+                "regex": "^[^*#&+:<>?@%{}\\\\/]{1,260}$",
+                "validationMessage": "1-260 characters. These characters aren't allowed: * # & + : < > ? @ % { } \\ /"
+              }
+            },
+            {
+              "name": "policyEffect",
+              "type": "Microsoft.Common.DropDown",
+              "label": "Policy effect",
+              "defaultValue": "DeployIfNotExists",
+              "toolTip": "DeployIfNotExists creates missing diagnostic settings. Disabled turns the policy off.",
+              "constraints": {
+                "required": true,
+                "allowedValues": [
+                  {
+                    "label": "DeployIfNotExists",
+                    "value": "DeployIfNotExists"
+                  },
+                  {
+                    "label": "Disabled",
+                    "value": "Disabled"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "remediationInfo",
+              "type": "Microsoft.Common.InfoBox",
+              "options": {
+                "style": "Info",
+                "text": "New subscriptions are covered automatically. To cover subscriptions that already exist, create a remediation task from Policy > Remediation once the first compliance scan finishes, usually within 30 minutes."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "outputs": {
+      "kind": "ManagementGroup",
+      "managementGroupId": "[steps('basics').managementGroup.managementGroupId]",
+      "location": "[steps('basics').eventHub.namespace.location]",
+      "parameters": {
+        "eventHubAuthorizationRuleId": "[steps('basics').eventHub.authorizationRule]",
+        "eventHubName": "[steps('basics').eventHub.eventHub]",
+        "diagnosticSettingName": "[steps('policy').diagnosticSettingName]",
+        "policyEffect": "[steps('policy').policyEffect]"
+      }
+    }
+  }
+}

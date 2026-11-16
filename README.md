@@ -19,8 +19,23 @@ Pick one scope.
 
 | Scope | Use when | Deploy |
 |---|---|---|
-| **Management group** | You want every subscription under a management group covered, including subscriptions added later | [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fmikedzikowski%2Fcs-azure-policy-diagnotic-settings%2Fmain%2FmanagementGroup.json) |
-| **Subscription** | You want to cover one subscription | [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fmikedzikowski%2Fcs-azure-policy-diagnotic-settings%2Fmain%2Fsubscription.json) |
+| **Management group** | You want every subscription under a management group covered, including subscriptions added later | [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fmikedzikowski%2Fcs-azure-policy-diagnotic-settings%2Fmain%2FmanagementGroup.json/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fmikedzikowski%2Fcs-azure-policy-diagnotic-settings%2Fmain%2FmanagementGroup.form.json) |
+| **Subscription** | You want to cover one subscription | [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fmikedzikowski%2Fcs-azure-policy-diagnotic-settings%2Fmain%2Fsubscription.json/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fmikedzikowski%2Fcs-azure-policy-diagnotic-settings%2Fmain%2Fsubscription.form.json) |
+
+### What the form asks for
+
+| Field | What to choose |
+|---|---|
+| **Management group** or **Subscription** | Where the policy is created and assigned |
+| **Event Hubs namespace** | The namespace that receives the logs. Lists every namespace you can read, in any subscription. The CrowdStrike registration creates one named `cs-horizon-ns-<subscription-id>`. |
+| **Authorization rule** | A namespace shared access policy with **Send** rights. Only rules with Send are listed. The CrowdStrike registration creates a Send-only rule named `cs-eventhub-monitor-auth-rule`. Avoid `RootManageSharedAccessKey`; it's the namespace's admin key. |
+| **Event hub** | The event hub in that namespace. The CrowdStrike registration creates one named `cs-eventhub-monitor-activity-logs`. |
+| **Diagnostic setting name** | Leave the default unless you need a different name |
+| **Policy effect** | `DeployIfNotExists` (default) or `Disabled` |
+| **Create a remediation task** | *Subscription only.* Leave **Yes** to fix the subscription right away |
+
+The deployment record and the policy's managed identity are stored in the Event Hubs
+namespace's region. The form shows which region before you deploy.
 
 Each deployment creates:
 
@@ -66,16 +81,30 @@ subscription:
 az monitor diagnostic-settings subscription list --subscription <SUBSCRIPTION_ID> -o table
 ```
 
-## Parameters
+## Template parameters
+
+The portal form fills these in. You only set them directly when deploying with the CLI.
 
 | Parameter | Required | Default | Description |
 |---|---|---|---|
-| **Region** / `location` | Yes | — | Region where deployment metadata and the assignment's managed identity are stored |
 | `eventHubAuthorizationRuleId` | Yes | — | Full resource ID of the namespace authorization rule, e.g. `/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-cs-eventhub/providers/Microsoft.EventHub/namespaces/ns-cs-activity/authorizationRules/cs-send` |
 | `eventHubName` | Yes | — | The event hub's **name only**, e.g. `cs-activity-hub`, not a resource ID |
 | `diagnosticSettingName` | No | `cs-monitor-activity-to-eventhub` | Name of the diagnostic setting created on each subscription |
 | `policyEffect` | No | `DeployIfNotExists` | Set to `Disabled` to turn the policy off without removing it |
 | `createRemediationTask` | No | `true` | *Subscription scope only.* Starts a remediation task after the assignment is created |
+
+`eventHubAuthorizationRuleId` must be:
+
+- **A namespace-level rule.** The ID ends in
+  `/namespaces/<namespace>/authorizationRules/<rule>`. A rule on a single event hub
+  (`.../eventhubs/<hub>/authorizationRules/<rule>`) doesn't work, because diagnostic
+  settings only accept namespace rules.
+- **A rule with Send rights.** Send-only is best. `RootManageSharedAccessKey` works, but it
+  grants full control of the namespace.
+- **A resource ID, not a connection string or key.** Nothing secret goes into the
+  deployment. Azure reads the key itself when it creates the diagnostic setting.
+
+The rule can be in a different subscription from the one being covered.
 
 To find the authorization rule ID:
 
@@ -194,7 +223,9 @@ az monitor diagnostic-settings subscription delete \
 | File | Purpose |
 |---|---|
 | `managementGroup.json` | ARM template for management group scope |
+| `managementGroup.form.json` | Portal form for the management group button |
 | `subscription.json` | ARM template for subscription scope |
+| `subscription.form.json` | Portal form for the subscription button |
 
 Both templates embed `cs-ioa-policy.json` from
 [CrowdStrike/cs-azure-integration-bicep](https://github.com/CrowdStrike/cs-azure-integration-bicep/tree/main/policies/cs-ioa-policy)

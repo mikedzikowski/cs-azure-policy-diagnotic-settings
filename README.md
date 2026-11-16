@@ -1,0 +1,1 @@
+# cs-azure-policy-diagnotic-settings
